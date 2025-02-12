@@ -12,6 +12,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Register dependencies
 builder.Services.AddScoped<MonitoredInstanceRepository>();
 builder.Services.AddScoped<MonitoredInstanceService>();
+builder.Services.AddScoped<HangfireMonitoringService>();
 
 var app = builder.Build();
 
