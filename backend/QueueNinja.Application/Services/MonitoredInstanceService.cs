@@ -1,25 +1,32 @@
+using QueueNinja.Application.Interfaces;
 using QueueNinja.Domain.Entities;
-using QueueNinja.Infrastructure.Repositories;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 
 namespace QueueNinja.Application.Services
 {
-    public class MonitoredInstanceService
+    public class MonitoredInstanceService : IMonitoredInstanceService
     {
-        private readonly MonitoredInstanceRepository _repository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public MonitoredInstanceService(MonitoredInstanceRepository repository)
+        public MonitoredInstanceService(IUnitOfWork unitOfWork)
         {
-            _repository = repository;
+            _unitOfWork = unitOfWork;
+        }
+
+        public Task<MonitoredInstance> AddInstance(MonitoredInstance instance)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<List<MonitoredInstance>> GetAllInstances()
         {
-            return await _repository.GetAllInstances();
+            return await _unitOfWork.MonitoredInstances.GetAllAsync();
         }
 
-        public async Task<MonitoredInstance> AddInstance(MonitoredInstance instance)
+        public async Task<MonitoredInstance?> GetInstanceById(int instanceId)
         {
-            return await _repository.AddInstance(instance);
+            return await _unitOfWork.MonitoredInstances.GetInstanceById(instanceId);
         }
     }
 }

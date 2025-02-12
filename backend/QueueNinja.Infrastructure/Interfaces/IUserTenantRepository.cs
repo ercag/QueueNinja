@@ -1,0 +1,10 @@
+using QueueNinja.Domain.Entities;
+using System.Threading.Tasks;
+
+namespace QueueNinja.Application.Interfaces
+{
+    public interface IUserTenantRepository
+    {
+        Task AssignUserToTenantAsync(string userId, int tenantId);
+    }
+}

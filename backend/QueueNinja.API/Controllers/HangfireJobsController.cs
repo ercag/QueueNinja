@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
-using Dapper;
-using Npgsql;
-using QueueNinja.Application.Services;
+using QueueNinja.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QueueNinja.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/jobs")]
     public class HangfireJobsController : ControllerBase
     {
-        private readonly HangfireMonitoringService _monitoringService;
+        private readonly IHangfireMonitoringService _monitoringService;
 
-        public HangfireJobsController(HangfireMonitoringService monitoringService)
+        public HangfireJobsController(IHangfireMonitoringService monitoringService)
         {
             _monitoringService = monitoringService;
         }

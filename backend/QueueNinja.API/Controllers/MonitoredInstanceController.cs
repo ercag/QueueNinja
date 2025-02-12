@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using QueueNinja.Application.Services;
+using QueueNinja.Application.Interfaces;
 using QueueNinja.Domain.Entities;
 
 namespace QueueNinja.Api.Controllers
@@ -8,9 +8,9 @@ namespace QueueNinja.Api.Controllers
     [Route("api/instances")]
     public class MonitoredInstanceController : ControllerBase
     {
-        private readonly MonitoredInstanceService _service;
+        private readonly IMonitoredInstanceService _service;
 
-        public MonitoredInstanceController(MonitoredInstanceService service)
+        public MonitoredInstanceController(IMonitoredInstanceService service)
         {
             _service = service;
         }

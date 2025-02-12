@@ -1,12 +1,12 @@
 using Dapper;
 using Npgsql;
-using QueueNinja.Domain.DTOs;
-using QueueNinja.Domain.Entities;
+using QueueNinja.Application.Interfaces;
+using QueueNinja.Domain.Dto;
 using QueueNinja.Infrastructure.Repositories;
 
 namespace QueueNinja.Application.Services
 {
-    public class HangfireMonitoringService
+    public class HangfireMonitoringService : IHangfireMonitoringService
     {
         private readonly MonitoredInstanceRepository _instanceRepository;
 

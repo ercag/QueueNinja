@@ -1,4 +1,4 @@
-namespace QueueNinja.Domain.DTOs
+namespace QueueNinja.Domain.Dto
 {
     public class JobHistoryDto
     {

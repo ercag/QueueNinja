@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using QueueNinja.Application.Interfaces;
 using QueueNinja.Domain.Entities;
 using QueueNinja.Infrastructure.Data;
 
 namespace QueueNinja.Infrastructure.Repositories
 {
-    public class MonitoredInstanceRepository
+    public class MonitoredInstanceRepository : IMonitoredInstanceRepository
     {
         private readonly AppDbContext _context;
 
@@ -13,10 +14,6 @@ namespace QueueNinja.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<List<MonitoredInstance>> GetAllInstances()
-        {
-            return await _context.MonitoredInstance.ToListAsync();
-        }
         public Task<MonitoredInstance> GetInstanceById(int instanceId)
         {
             return _context.MonitoredInstance.SingleOrDefaultAsync(_ => _.Id == instanceId);
@@ -27,6 +24,11 @@ namespace QueueNinja.Infrastructure.Repositories
             _context.MonitoredInstance.Add(instance);
             await _context.SaveChangesAsync();
             return instance;
+        }
+
+        public async Task<List<MonitoredInstance>> GetAllAsync()
+        {
+            return await _context.MonitoredInstance.ToListAsync();
         }
     }
 }
