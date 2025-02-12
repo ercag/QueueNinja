@@ -1,4 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+using QueueNinja.Data;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Add PostgreSql Darabase
+builder.Services.AddDbContext<AppDbContext>(options =>
+                    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add services to the container.
 
