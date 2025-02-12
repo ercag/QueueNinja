@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Dapper;
+using Npgsql;
 using QueueNinja.Application.Services;
-using QueueNinja.Domain.DTOs;
 
 namespace QueueNinja.Api.Controllers
 {
@@ -21,5 +22,29 @@ namespace QueueNinja.Api.Controllers
             var jobs = await _monitoringService.GetUserJobs(instanceId);
             return Ok(jobs);
         }
+
+        // 🔄 Retry Job
+        [HttpPost("retry/{jobId}")]
+        public async Task<IActionResult> RetryJob(int jobId, [FromQuery] int instanceId)
+        {
+            var success = await _monitoringService.RetryJob(instanceId, jobId);
+            return success ? Ok("Job retried successfully.") : BadRequest("Job retry failed.");
+        }
+
+        // 🗑 Delete Job
+        [HttpDelete("{jobId}")]
+        public async Task<IActionResult> DeleteJob(int jobId, [FromQuery] int instanceId)
+        {
+            var success = await _monitoringService.DeleteJob(instanceId, jobId);
+            return success ? Ok("Job deleted successfully.") : BadRequest("Job deletion failed.");
+        }
+
+        [HttpGet("{instanceId}/history/{jobId}")]
+        public async Task<IActionResult> GetJobHistory(int instanceId, int jobId)
+        {
+            var history = await _monitoringService.GetJobHistory(instanceId, jobId);
+            return history != null ? Ok(history) : NotFound("No history found.");
+        }
+
     }
 }
