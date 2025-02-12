@@ -15,17 +15,19 @@ namespace QueueNinja.Application.Services
             _instanceRepository = instanceRepository;
         }
 
+        // ✅ Get Recent 50 Jobs from Hangfire
         public async Task<List<JobDto>> GetUserJobs(int instanceId)
         {
-            var instance = _instanceRepository.GetInstanceById(instanceId);
+            var instance = await _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) throw new Exception("Instance not found");
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
             var query = @"
-                SELECT j.Id, j.InvocationData, s.Name as State, j.CreatedAt 
-                FROM HangFire.Job j
-                LEFT JOIN HangFire.State s ON j.StateId = s.Id
-                ORDER BY j.CreatedAt DESC
+                SELECT j.id, j.invocationdata, 
+                    (SELECT statename FROM hangfire.state s WHERE s.jobid = j.id ORDER BY createdat DESC LIMIT 1) AS state, 
+                    j.createdat 
+                FROM hangfire.job j
+                ORDER BY j.createdat DESC
                 LIMIT 50;
             ";
 
@@ -33,42 +35,57 @@ namespace QueueNinja.Application.Services
             return jobs.ToList();
         }
 
+        // ✅ Retry Job by Enqueuing It Again
         public async Task<bool> RetryJob(int instanceId, int jobId)
         {
-            var instance = _instanceRepository.GetInstanceById(instanceId);
+            var instance = await _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return false;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
-            var query = "INSERT INTO HangFire.JobQueue (JobId, Queue) VALUES (@JobId, 'default')";
+
+            var query = @"
+                INSERT INTO hangfire.state (jobid, statename, createdat)
+                VALUES (@JobId, 'Enqueued', NOW());
+            ";
+
             var affectedRows = await conn.ExecuteAsync(query, new { JobId = jobId });
 
             return affectedRows > 0;
         }
 
+        // ✅ Delete Job from Hangfire
         public async Task<bool> DeleteJob(int instanceId, int jobId)
         {
-            var instance = _instanceRepository.GetInstanceById(instanceId);
+            var instance = await _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return false;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
-            var query = "DELETE FROM HangFire.Job WHERE Id = @JobId";
+
+            var query = @"
+                DELETE FROM hangfire.state WHERE jobid = @JobId;
+                DELETE FROM hangfire.jobparameter WHERE jobid = @JobId;
+                DELETE FROM hangfire.job WHERE id = @JobId;
+            ";
+
             var affectedRows = await conn.ExecuteAsync(query, new { JobId = jobId });
 
             return affectedRows > 0;
         }
 
+        // ✅ Get Job Execution History
         public async Task<List<JobHistoryDto>?> GetJobHistory(int instanceId, int jobId)
         {
-            var instance = _instanceRepository.GetInstanceById(instanceId);
+            var instance = await _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return null;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
             var query = @"
-                SELECT s.Name AS State, s.CreatedAt, p.Value AS ErrorMessage
-                FROM HangFire.State s
-                LEFT JOIN HangFire.JobParameter p ON s.JobId = p.JobId AND p.Name = 'ExceptionDetails'
-                WHERE s.JobId = @JobId
-                ORDER BY s.CreatedAt DESC;
+                SELECT s.statename AS state, s.createdat, 
+                       COALESCE(p.value, '') AS errormessage
+                FROM hangfire.state s
+                LEFT JOIN hangfire.jobparameter p ON s.jobid = p.jobid AND p.name = 'ExceptionDetails'
+                WHERE s.jobid = @JobId
+                ORDER BY s.createdat DESC;
             ";
 
             var history = await conn.QueryAsync<JobHistoryDto>(query, new { JobId = jobId });

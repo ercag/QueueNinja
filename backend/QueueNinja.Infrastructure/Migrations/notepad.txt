@@ -1,0 +1,182 @@
+using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace QueueNinja.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class InitialCreate : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            // Create MonitoredInstances table only if it doesn't exist
+            migrationBuilder.Sql(@"
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE LOWER(table_name) = 'MonitoredInstance'
+                    ) THEN
+                        CREATE TABLE ""MonitoredInstance""(
+                            ""Id"" SERIAL PRIMARY KEY,
+                            ""Name"" TEXT NOT NULL,
+                            ""ConnectionString"" TEXT NOT NULL,
+                            ""CreateOnUtc"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+                        );
+                    END IF;
+                END $$;
+            ");
+
+            // Insert dummy monitored instances
+            migrationBuilder.Sql(@"
+                INSERT INTO monitoredinstances (name, connectionstring, createdat)
+                SELECT 'Test Instance', 'Host=localhost;Database=queueninja;Username=postgres;Password=postgres', NOW()
+                WHERE NOT EXISTS (SELECT 1 FROM monitoredinstances WHERE name = 'Test Instance');
+            ");
+            HangfireUp(migrationBuilder);
+            SeedHangfireTestData(migrationBuilder);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(name: "MonitoredInstances");
+            HangfireDown(migrationBuilder);
+        }
+
+        private void HangfireUp(MigrationBuilder migrationBuilder)
+        {
+            // 🔹 Ensure the Hangfire schema exists
+            migrationBuilder.Sql(@"CREATE SCHEMA IF NOT EXISTS hangfire;");
+
+            // 🔹 Create Hangfire tables manually using Hangfire's naming convention
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS hangfire.job (
+                    id SERIAL PRIMARY KEY,
+                    invocationdata TEXT NOT NULL,
+                    arguments TEXT NOT NULL,
+                    createdat TIMESTAMP NOT NULL,
+                    expireat TIMESTAMP NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.state (
+                    id SERIAL PRIMARY KEY,
+                    jobid INT NOT NULL REFERENCES hangfire.job(id),
+                    statename TEXT NOT NULL,
+                    reason TEXT NULL,
+                    createdat TIMESTAMP NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.jobqueue (
+                    jobid INT NOT NULL REFERENCES hangfire.job(id),
+                    queue TEXT NOT NULL,
+                    fetchedat TIMESTAMP NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.server (
+                    id TEXT PRIMARY KEY,
+                    data TEXT NOT NULL,
+                    lastheartbeat TIMESTAMP NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.counter (
+                    key TEXT PRIMARY KEY,
+                    value INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.set (
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    score REAL NOT NULL,
+                    expireat TIMESTAMP NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.hash (
+                    key TEXT NOT NULL,
+                    field TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    expireat TIMESTAMP NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS hangfire.list (
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    expireat TIMESTAMP NULL
+                );
+            ");
+        }
+
+        private void HangfireDown(MigrationBuilder migrationBuilder)
+        {
+            // Drop all Hangfire tables if rolling back the migration
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.list;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.hash;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.set;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.counter;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.server;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.jobqueue;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.state;");
+            migrationBuilder.Sql(@"DROP TABLE IF EXISTS hangfire.job;");
+            migrationBuilder.Sql(@"DROP SCHEMA IF EXISTS hangfire;");
+        }
+        // ✅ Function to Seed Dummy Test Data into Hangfire
+        private void SeedHangfireTestData(MigrationBuilder migrationBuilder)
+        {
+            // Insert test jobs covering different states
+            migrationBuilder.Sql(@"
+        INSERT INTO hangfire.job (invocationdata, arguments, createdat, expireat)
+        VALUES
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunSuccess"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW(), NOW() + INTERVAL '7 days'), -- Job 1 (Success)
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunFailure"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW(), NOW() + INTERVAL '7 days'), -- Job 2 (Failure)
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunLongTask"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW(), NOW() + INTERVAL '7 days'), -- Job 3 (Long-running)
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunDeleted"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW(), NOW() + INTERVAL '7 days'), -- Job 4 (Deleted)
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunScheduled"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '8 days'), -- Job 5 (Scheduled)
+          ('{""Type"":""ExampleJob, MyApp"",""Method"":""RunRecurring"",""ParameterTypes"":[],""Arguments"":""[]""}', '[]', NOW(), NULL) -- Job 6 (Recurring)
+        RETURNING id;
+    ");
+
+            // Insert job states (Processing, Succeeded, Failed, Deleted, Scheduled)
+            migrationBuilder.Sql(@"
+        INSERT INTO hangfire.state (jobid, statename, reason, createdat)
+        VALUES
+          (1, 'processing', NULL, NOW() - INTERVAL '10 minutes'),
+          (1, 'succeeded', NULL, NOW()),
+
+          (2, 'processing', NULL, NOW() - INTERVAL '5 minutes'),
+          (2, 'failed', 'Unhandled exception', NOW()),
+
+          (3, 'processing', NULL, NOW() - INTERVAL '20 minutes'),
+          (3, 'succeeded', NULL, NOW()),
+
+          (4, 'processing', NULL, NOW() - INTERVAL '15 minutes'),
+          (4, 'deleted', 'Job was manually removed', NOW()),
+
+          (5, 'scheduled', NULL, NOW() + INTERVAL '1 hour'),
+
+          (6, 'recurring', NULL, NOW());
+    ");
+
+            // Insert job queue with multiple priority levels
+            migrationBuilder.Sql(@"
+        INSERT INTO hangfire.jobqueue (jobid, queue, fetchedat)
+        VALUES
+          (2, 'default', NULL), -- Failed job (Ready for retry)
+          (3, 'critical', NULL), -- Long task (High priority)
+          (5, 'low', NULL); -- Scheduled job (Lower priority)
+    ");
+
+            // Insert recurring job definitions
+            migrationBuilder.Sql(@"
+        INSERT INTO hangfire.hash (key, field, value)
+        VALUES
+          ('recurring-job:runRecurring', 'cron', '*/5 * * * *'),
+          ('recurring-job:runRecurring', 'queue', 'default'),
+          ('recurring-job:runRecurring', 'createdat', NOW()::TEXT);
+    ");
+        }
+
+    }
+}

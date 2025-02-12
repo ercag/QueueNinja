@@ -15,16 +15,16 @@ namespace QueueNinja.Infrastructure.Repositories
 
         public async Task<List<MonitoredInstance>> GetAllInstances()
         {
-            return await _context.MonitoredInstances?.ToListAsync();
+            return await _context.MonitoredInstance.ToListAsync();
         }
-        public MonitoredInstance GetInstanceById(int instanceId)
+        public Task<MonitoredInstance> GetInstanceById(int instanceId)
         {
-            return _context.MonitoredInstances.SingleOrDefault(_ => _.Id == instanceId);
+            return _context.MonitoredInstance.SingleOrDefaultAsync(_ => _.Id == instanceId);
         }
 
         public async Task<MonitoredInstance> AddInstance(MonitoredInstance instance)
         {
-            _context.MonitoredInstances.Add(instance);
+            _context.MonitoredInstance.Add(instance);
             await _context.SaveChangesAsync();
             return instance;
         }
