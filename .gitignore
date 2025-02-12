@@ -1,0 +1,32 @@
+# ---- .NET Core ----
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+secrets.json
+
+# ---- Node.js (Frontend) ----
+node_modules/
+dist/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# ---- PostgreSQL ----
+pgdata/
+*.sql
+
+# ---- Docker ----
+docker-compose.override.yml
+.dockerignore
+
+# ---- IDE & Editor ----
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
