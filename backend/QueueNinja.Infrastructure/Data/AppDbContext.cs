@@ -1,10 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using QueueNinja.Domain.Entities;
 
 namespace QueueNinja.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions options) : base(options) { }
-
-    public DbSet<MonitoredInstance> MonitoredInstances { get; }
+    public DbSet<MonitoredInstance>? MonitoredInstances { get; }
 }

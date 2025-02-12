@@ -1,5 +1,6 @@
 using Dapper;
 using Npgsql;
+using QueueNinja.Domain.DTOs;
 using QueueNinja.Domain.Entities;
 using QueueNinja.Infrastructure.Repositories;
 
@@ -16,7 +17,7 @@ namespace QueueNinja.Application.Services
 
         public async Task<List<JobDto>> GetUserJobs(int instanceId)
         {
-            var instance = await _instanceRepository.GetInstanceById(instanceId);
+            var instance = _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) throw new Exception("Instance not found");
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
@@ -34,7 +35,7 @@ namespace QueueNinja.Application.Services
 
         public async Task<bool> RetryJob(int instanceId, int jobId)
         {
-            var instance = await _instanceRepository.GetInstanceById(instanceId);
+            var instance = _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return false;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
@@ -46,7 +47,7 @@ namespace QueueNinja.Application.Services
 
         public async Task<bool> DeleteJob(int instanceId, int jobId)
         {
-            var instance = await _instanceRepository.GetInstanceById(instanceId);
+            var instance = _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return false;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
@@ -56,9 +57,9 @@ namespace QueueNinja.Application.Services
             return affectedRows > 0;
         }
 
-        public async Task<List<JobHistoryDto>> GetJobHistory(int instanceId, int jobId)
+        public async Task<List<JobHistoryDto>?> GetJobHistory(int instanceId, int jobId)
         {
-            var instance = await _instanceRepository.GetInstanceById(instanceId);
+            var instance = _instanceRepository.GetInstanceById(instanceId);
             if (instance == null) return null;
 
             using var conn = new NpgsqlConnection(instance.ConnectionString);
